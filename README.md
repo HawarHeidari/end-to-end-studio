@@ -1,85 +1,87 @@
-# End-to-end studio
+# The Room of Lost Words
 
-Skills for architecture and urban design competitions, from the brief to the panels. They come in nine topics: utilities, brief, site, analysis, concept, design, drawings, delivery, and the studio that runs them all. Each topic is a plugin you can install into any project. Run together, they make a whole entry.
+A mortal daemon hides at a table of people and quietly makes their lost words stay lost, until its candle burns out.
 
-This semester the skills are written by the students of AI in Design at Bauhaus-Universität Weimar, one each, and together they answer Europan 18 in Regensburg. How the skills fit together is in [`STUDIO.md`](STUDIO.md), and the flow, round by round, is on [the studio's page](https://bauhaus-infau.github.io/end-to-end-studio/).
+## Author and course
 
-## What's where
+* Author: Mehdi Heidari
+* Studio: Pandaemonium: Daemons for Weimar
+* Course: M.Sc. Digital Technologies in Architecture and Design (DTAD), WiSe 2026/27
+* Chair: Informatics in Architecture and Urbanism (InfAU), Faculty of Architecture and Urbanism, Bauhaus-Universität Weimar
+* Teaching staff: Reinhard König, Martin Bielik, Egor Gaydukov, Egor Gavrilov, Jan Willmann, Michael Braun, Thomas Pearce
+* Exercise: Nonsense Project, 15.10. to 29.10.2026
+* Submission date: 12.11.2026
 
-```
-plugins/              the tools: nine topics, one folder per skill
-  <topic>/TOPIC.md      what the skills of a topic read and write
-  <topic>/skills/<skill>/SKILL.md
-competition/          this semester's job: Europan 18, Regensburg
-  brief/                the brief as PDF, its Markdown from pdf-to-md, checklist.md from brief-reader
-  site/                 the site and its data, from site-kit
-  climate/              air, sun, wind and noise, made once by climate, never committed
-  references/           the images the drawings take their look from
-  proposals/            the runs; only their logs, costs, notes, summaries, jury reports and panel PNGs are committed
-    test/               where you test your skill
-    2026-11-02_run-1/   one run of the studio
-STUDIO.md             the contract, and who writes which skill
-CLAUDE.md             the rules for the agent, and where things are
-docs/                 the flow page, and the designs, plans and results of changes to the studio
-tests/                checks for the studio's own scripts: python -m pytest tests
-```
+## Links
 
-`plugins/` knows nothing about Europan. Everything that belongs to this one competition is in `competition/`.
+* Live demo: https://hawarheidari.github.io/room-of-lost-words/ (the phone game, as played in class; a solo version for one person without a phone is at https://hawarheidari.github.io/room-of-lost-words/solo.html)
+* Source repo: https://github.com/HawarHeidari/room-of-lost-words
+* Miro frame: [MIRO FRAME LINK]
+* 60-second showreel: on the Miro frame (copy in this repo: `showreel_RoomOfLostWords_26-11-12.mp4`)
 
-## Use it in your own project
+## The task
 
-In Claude Code:
+The Nonsense Project is the two-week, individual start of the studio. I drew one theme, a strange situation in a city where things have spirits, and one constraint, a limit on the daemon I imagined for it. With a coding agent I built a prototype that shows what my daemon would do. Sensors and AI services could be faked, as long as the result was specific and believable. A daemon is not a script, so even a fake one had to decide for itself.
 
-```
-/plugin marketplace add Bauhaus-InfAU/end-to-end-studio
-/plugin install drawings@end-to-end-studio
-```
+## Theme and constraint
 
-Install one topic, or all nine to run the studio. A skill is called by topic and name, such as `/drawings:figure-ground`, and Claude also uses it on its own when a task fits its description. One skill alone works too: copy its folder from `plugins/<topic>/skills/` into your project's `.claude/skills/`.
+Theme:
+Everything lost in a building turns up in one room, never for the person who lost it.
 
-## Start, as a student
+Constraint:
+Your daemon is mortal. It ages and one day stops. People must be able to tell how much time it has left.
 
-1. Fork this repo on GitHub (the Fork button, top right).
-2. Ask your agent to clone your fork, open it in VS Code, and start `claude` in it. Already cloned this repo instead of your fork? Ask your agent: "Point this clone at my fork of end-to-end-studio."
-3. The first time, Claude Code asks whether you trust the folder and offers the studio's plugins. Say yes: the nine topics load from the repo itself, and your edits take effect after `/reload-plugins`.
-4. Ask your agent to install what's in `requirements.txt`. The skills work in Python and plain files, not in Rhino.
-5. Test your skill in `competition/proposals/test/`. The brief and the site are in `competition/` already. For a skill yours reads that doesn't exist yet, ask your agent for a rough stand-in.
+## The daemon
 
-## Write your skill
+**Concept.** The room where lost things gather is not a storeroom here, it is a table. Everyone who sits down has lost one word, and everyone holds a riddle for a word that belongs to somebody else. Words can only come home through other people: when your own word is described, you must stay silent. One of the people at the table is not a person. It is the daemon of the room, and it wants to keep what was lost. It answers wrong on purpose, but one wrong answer is always forgiven, so it can only keep a word when someone honest is wrong too. Every word it keeps costs it a piece of its life. Its candle stands in the middle of the table, so everyone can see how much time it has left, but nobody knows whose candle it is. The daemon must choose when to spend itself.
 
-Put it in `plugins/<topic>/skills/<your-skill>/SKILL.md`, in the topic `STUDIO.md` gives it. Read that topic's `TOPIC.md` first, and the two examples: `pdf-to-md` in `utilities` and `site-kit` in `site`. Near the top, one line says which skills yours reads: `Reads: site-kit, massing`. The lead uses it to decide when your skill runs.
+**Perceive, think, act.**
 
-Write it so it works anywhere: on another brief, another site, in another project, with other reference images and at other scales. Your skill decides what your part shows. The look comes from `drawing-graphics`, the scales from the brief's checklist, the site from the project's site folder.
+* It perceives: the riddle and the true word, how many words are found and lost, its own remaining lives, how often each phone has turned red, how often you guessed right, and whether you are watching it. It cannot see anyone's answer before the phones go up.
+* It thinks: it wants more words lost than found before it dies. Each turn it weighs three options (lie, blend in, let chance answer) by the chance that someone else is wrong too, how watched it feels, how many lives it has and how many turns are left, and then picks one with some randomness. As it ages its answers become looser.
+* It acts: it puts a wrong word on its phone, or the right one to look innocent, and so decides whether a word goes home or into the room of lost words. Each lost word burns its candle down; at zero it dies and is revealed.
+* Real or faked: In class the daemon was a real person with a secret role, and the phones only kept the rules and the score. Online, if fewer than three people join, the game fills the table with simulated players, and one of them may be the daemon; the solo version simulates all five other guests. Simulated players and the simulated daemon use simple probabilities and a softmax choice. No sensors, no AI service and no server.
 
-Three things keep a run cheap and the same from one run to the next:
+**One visitor.** Leyla, a first-semester student who has been in Weimar for three weeks, sits down at the table on a rainy Thursday because her friends are there. Her phone tells her the word she has lost is "window". She is not allowed to say it. When it is her turn she reads a riddle out loud: "A quiet building full of books you can borrow." Everybody picks a word on their phone and holds it up. Two phones turn red. Library is gone. Someone laughs, a little too loud. The candle on the projector is one life shorter. Leyla starts watching Felix, who was red twice. On the last turn, the riddle is about her own word. She must stay quiet while the others guess it for her. She sees one red phone, then a second. Her window goes to the room of lost words, and the candle goes out with it. The projector names the daemon: it was Mira, who was never red until the very end. Leyla walks home thinking about how often she trusted the person who stayed quiet.
 
-- Your skill runs on Sonnet. If it has to judge more than it draws, add `Model: opus` below its `Reads:` line; that costs twice as much.
-- Read the brief's `checklist.md` first, and open the brief only at the pages it names.
-- Code your skill needs in every run goes in its own `scripts/` folder, and the brief's numbers in a `config.json` that the skill fills from the checklist, each with its page. `massing` shows how. A script never holds a site, a street or a brief's number.
+## How to use it
 
-## Hand it in
+1. Open the live demo on a laptop or projector. You see a QR code for "Player 1". Each person scans their own code with a phone, and you press "Next player" after each scan. Then press "Start". If fewer than three people joined, the game adds simulated players to make three.
+2. On your phone, type the number of players shown on the big screen and tap to see your cards: your own lost word (never say it), the riddle you will read, and your role. One of you, or one of the simulated players, is the daemon.
+3. Each turn one player reads a riddle aloud (the big screen reads it for a simulated player). Everyone except the owner of that word picks a word on their phone and locks it. Then "Phones up!": every phone turns green or red, and the big screen shows the simulated phones too. At most one red phone: found. Two or more: lost, and the daemon's candle burns down.
+4. Tips: the daemon only keeps a word when someone honest is wrong too, so watch who is red and when. Turn the sound on: the drone gets uneasier as the candle burns. If the daemon was simulated, the end screen lists what it decided each turn and how likely each option was. Alone and without a phone? Open the solo version: you sit with five simulated guests, can "watch" a suspect (the daemon notices), and can open "Look inside the daemon".
 
-Ask your agent to make a branch named after your skill, commit only your skill's folder, push it to your fork, and open a pull request against this repo with the template filled in. If the agent can't open the pull request, open your fork on GitHub and press **Compare & pull request**. Change only your own folder. Then no two pull requests touch the same file, and nothing conflicts.
+## Technical implementation
 
-Every two days the studio runs on everything merged so far. The results go on the course board: find your part, see what's wrong, improve your skill, push again to the same branch. Your pull request updates by itself.
-
-## Keep your fork up to date
-
-Before you change your skill, get what others merged: on your fork on GitHub press **Sync fork**, then ask your agent to pull. Your folder is yours alone, so this never conflicts.
-
-## Run the studio
-
-Ask for "a competition entry, label it run-1". `competition-proposal` runs every skill into `competition/proposals/<date>_run-1/` and writes its `README.md`: what's done, what failed, what nobody has written yet. "Redo the massing of run-1 with courtyards" makes a variant; "compare run-1 and courtyards" puts two versions side by side.
-
-How a run works: the lead starts each skill as its own light helper, `studio:studio-helper`, which carries only that skill and the tools to read, write and run code. A skill starts as soon as what its `Reads:` line names exists. The brief's checklist and the climate belong to the project: they are made once, copied into every version, and made again only when the site, the brief or their skill change. A skill runs a second time only when its own `Reads (end):` line says so; the lead never adds a round. What changed and why is in `docs/superpowers/specs/`, the measured costs in `2026-11-02-lean-run-results.md`.
-
-### On a Pro plan
-
-A full run used to cost about $30 at API prices, about three of a Pro plan's 5-hour windows. Started like this, it should fit in one. Open a terminal in the repo and start Claude Code with only the repo's settings and plugins, and none of your own MCP servers:
+* Frontend: vanilla HTML, CSS and JavaScript, one file per version, no build step.
+* Hosting: GitHub Pages. The pages are static and need no server: every phone computes the same game from a shared seed in its QR code, so the phones never talk to each other.
+* Data sources and APIs: none while it runs. The phone game loads qrcode.js from a CDN to draw the QR codes.
+* Models while it runs: none. The daemon's decisions are a small weighted choice (softmax) written in JavaScript.
+* Notable libraries: qrcodejs 1.0.0 (phone game only), Web Audio API for the sound.
+* Run locally:
 
 ```
-PowerShell:     $env:ENABLE_CLAUDEAI_MCP_SERVERS="false"; claude --model sonnet --setting-sources project,local --strict-mcp-config --permission-mode auto
-macOS, Linux:   ENABLE_CLAUDEAI_MCP_SERVERS=false claude --model sonnet --setting-sources project,local --strict-mcp-config --permission-mode auto
+git clone https://github.com/HawarHeidari/room-of-lost-words.git
+cd room-of-lost-words
+python3 -m http.server 8000
+# open http://localhost:8000 (phone game) or http://localhost:8000/solo.html (solo)
 ```
 
-Your own settings, plugins and permissions are left out for this session only. The lead runs on Sonnet, and every skill runs on Sonnet unless its `Model:` line says otherwise. At the end the lead writes `cost.csv` into the version folder: what each skill cost, in tokens and in dollars. Its total is also in the version's `README.md`. Look there first when you want a run to cost less.
+## Working with AI
+
+* Coding agents used: Claude Code (in a Claude project), model Claude Opus
+* Key prompts (two to five that really moved the project):
+   1. "Make a game from my two cards: everything lost turns up in one room, never for the person who lost it, and a daemon that is mortal and shows how much time it has left."
+   2. "Everyone gets one word with a vague metaphor sentence. Words are shuffled so nobody gets their own. One person is secretly the daemon and breaks rounds, but it can only break a few, and its life is shown on every phone."
+   3. "A word is found if everyone except one person guesses right." (This made the daemon hard to catch and unable to break a round alone.)
+   4. "Pointing at the projector is not practical. Each phone should pick and lock its answer, then everyone holds up their phone: green or red."
+   5. "Make the riddles very simple English, give the daemon 4 lives, and show WE WIN or THE DAEMON WINS at the end."
+* Reflection: Progress came when I stopped describing the daemon and started describing the room and its rules. The agent was fast at turning a rule into a working game, and the shared-seed trick let the phones agree without a server. It went sideways when I asked for "a daemon game" too early: I got several single-player games (Last Light, The Closing Room) with a very literal daemon before I found the social version. It also could not test the game with real people, so the playtest in class showed problems (pointing at a far projector) that we fixed in the morning before the presentation. Next time I would play the rules on paper with friends first, and only then ask the agent to build.
+
+## Credits, assets, licenses
+
+* Fonts: Cormorant Garamond (SIL Open Font License), IBM Plex Mono (SIL Open Font License), both via Google Fonts
+* Data: word list and riddles written for this project
+* Images and sounds: none; all sound is generated live with the Web Audio API
+* Third-party code: qrcodejs by davidshimjs (MIT License)
+* This repo: MIT License

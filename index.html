@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Room of Lost Words</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: one file, two faces. Without a player code it is the projector: QR codes to join, the shared word list,
+   the daemon's candle (its remaining life) and the round controls. With a code (#g12345p7) it is one player's phone.
+   Single dark look on purpose: a dim room, gold for what is found, ember for what is lost. */
+:root{
+  --bg:#07070b; --panel:#111018; --line:#26232c; --fg:#e6dcc8; --dim:#857c6c; --gold:#d4ad55; --ember:#c4532f; --ok:#8fb9a0;
+  --display:"Cormorant Garamond","Iowan Old Style",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:14px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:18px}
+h1{margin:0;font-family:var(--display);font-weight:500;font-size:clamp(32px,5vw,52px);line-height:1;text-wrap:balance}
+h1 i{color:var(--gold)}
+h2{margin:0;font-family:var(--display);font-weight:500;font-size:clamp(24px,3.4vw,34px);line-height:1.1}
+.dim{color:var(--dim)}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+button{font:inherit;background:transparent;color:var(--fg);border:1px solid var(--dim);padding:10px 16px;cursor:pointer;border-radius:2px}
+button:hover:not(:disabled),button:focus-visible{border-color:var(--fg);outline:none}
+button.gold{background:var(--gold);border-color:var(--gold);color:#140f05}
+button.gold:hover:not(:disabled),button.gold:focus-visible{background:var(--fg);border-color:var(--fg)}
+button.ember{background:var(--ember);border-color:var(--ember);color:#fff}
+button:disabled{opacity:.35;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:18px;display:grid;gap:12px;min-width:0}
+
+/* projector */
+.grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+.qrbox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center}
+@media (max-width:600px){.qrbox{grid-template-columns:1fr}}
+#qr{background:#fff;padding:12px;width:max-content;max-width:100%;border-radius:2px}
+#qr img,#qr canvas{display:block;max-width:100%;height:auto}
+.big{font-variant-numeric:lining-nums;font-family:var(--display);font-size:clamp(40px,7vw,84px);line-height:1;color:var(--gold)}
+.url{font-size:11px;color:var(--dim);overflow-wrap:anywhere}
+.words{display:flex;flex-wrap:wrap;gap:8px}
+.w{font-family:var(--display);font-size:clamp(20px,2.4vw,28px);padding:4px 12px;border:1px solid var(--line);border-radius:2px}
+.w.found{color:var(--gold);border-color:var(--gold)}
+.w.lost{color:var(--ember);border-color:#4a2219;text-decoration:line-through;text-decoration-thickness:1px}
+.candlewrap{display:flex;gap:18px;align-items:flex-end}
+.candle{position:relative;width:34px;height:150px;display:flex;align-items:flex-end;justify-content:center}
+.wax{width:22px;background:linear-gradient(90deg,#b4924c,#f0d896 45%,#b4924c);border-radius:2px 2px 1px 1px;transition:height 1.2s ease}
+.flame{position:absolute;left:50%;width:12px;height:22px;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 70%,#fff6d6 0 20%,#ffb347 45%,rgba(255,120,40,0) 70%);border-radius:50% 50% 45% 45%/60% 60% 40% 40%;animation:fl 1.2s infinite ease-in-out;transition:bottom 1.2s ease}
+@keyframes fl{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-46%) scale(.9,1.1)}}
+.dead .flame{display:none}
+.turn{font-family:var(--display);font-size:clamp(28px,4vw,46px);line-height:1.1}
+.turn b{color:var(--gold);font-weight:600}
+.numbers{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
+.log{font-size:13px;color:var(--dim);display:grid;gap:4px;max-height:220px;overflow:auto}
+.rules{font-size:13px;color:var(--dim);display:grid;gap:6px;max-width:70ch}
+.rules b{color:var(--fg);font-weight:500}
+
+/* phone */
+.phone{max-width:460px;margin:0 auto;display:grid;gap:16px}
+.phone .num{font-family:var(--display);font-size:64px;line-height:1;color:var(--gold)}
+.phone input{font:inherit;font-size:22px;width:120px;background:#000;color:var(--fg);border:1px solid var(--dim);padding:8px 10px;border-radius:2px}
+.secret{display:grid;gap:14px}
+.secret .word{font-family:var(--display);font-size:42px;line-height:1}
+.secret .riddle{font-family:var(--display);font-style:italic;font-size:26px;line-height:1.25;color:var(--fg)}
+.role{padding:12px 14px;border-left:3px solid var(--ok);background:#0d1512}
+.role.daemon{border-color:var(--ember);background:#1a0d0a}
+.cover{font-family:var(--display);font-size:22px;padding:28px;text-align:center;border:1px dashed var(--dim)}
+.score{display:flex;gap:10px;align-items:center}
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.pick button{text-align:left;font-family:var(--display);font-size:22px;padding:10px 12px}
+.pick button .i{font-family:var(--mono);font-size:12px;color:var(--dim);margin-right:8px}
+.pick button.sel{border-color:var(--gold);color:var(--gold)}
+.tnav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tnav .t{font-family:var(--display);font-size:30px}
+.flash{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:24px}
+.flash.ok{background:#1f9a4a;color:#fff}.flash.no{background:#c8261c;color:#fff}.flash.mute{background:#2a2830;color:var(--fg)}
+.flash .verdict{font-family:var(--display);font-size:clamp(64px,22vw,140px);line-height:.9}
+.flash .sub{font-size:16px;max-width:30ch}
+.flash button{border-color:rgba(255,255,255,.7);color:#fff}
+.score .n{font-family:var(--display);font-size:40px;min-width:2ch;text-align:center}
+.bots{display:flex;flex-wrap:wrap;gap:8px}.bot{border:1px solid var(--line);border-radius:4px;padding:8px 12px;display:grid;gap:2px;min-width:120px}.bot .n{font-family:var(--display);font-size:22px}.bot.ok{background:#1f9a4a;border-color:#1f9a4a;color:#fff}.bot.no{background:#c8261c;border-color:#c8261c;color:#fff}.bot .a{font-size:12px}
+@media (prefers-reduced-motion:reduce){.flame{animation:none}.wax{transition:none}}
+</style>
+
+</head><body>
+<!-- ============ PROJECTOR ============ -->
+<div class="wrap" id="host">
+  <header class="row" style="justify-content:space-between;align-items:baseline">
+    <h1>The Room of <i>Lost Words</i></h1>
+    <span class="dim">a mortal daemon is hiding among you</span>
+  </header>
+  <p class="dim" style="margin:0;font-size:12.5px;max-width:90ch">As played in class on 29 October 2026: this screen goes on a laptop or projector, and every player scans their own QR code with a phone (up to 32). No server: every phone works out the same game from its code. <b style="color:var(--fg)">Fewer than 3 people?</b> The game fills the table with simulated players, who show their phones on this screen, and one of them may be the daemon. No phone at all? Play the <a href="solo.html" style="color:var(--gold)">solo version</a> on this computer.</p>
+
+  <!-- join -->
+  <section id="join" class="grid">
+    <div class="card">
+      <div class="qrbox">
+        <div id="qr" aria-label="QR code to join"></div>
+        <div style="display:grid;gap:10px">
+          <span class="label">scan to join as</span>
+          <div class="big">Player <span id="jn">1</span></div>
+          <p class="dim" style="margin:0">One phone per person. After someone scans, press Next.</p>
+          <div class="row">
+            <button class="gold" id="next">Next player</button>
+            <button id="undo">Back</button>
+          </div>
+          <div class="url" id="jurl"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="label">joined</span>
+      <div class="big" style="font-size:56px"><span id="jcount">0</span> <span class="dim" style="font-size:24px">people</span></div>
+      <button class="gold" id="begin" disabled>Everyone is in. Start</button>
+      <div class="rules">
+        <span><b>Your phone</b> gives you a lost word of your own, a riddle for someone else's word, and a role. Nobody ever reads their own word.</span>
+        <span><b>Each turn</b> one person reads their riddle aloud. Everyone else picks the word on their own phone and locks it.</span>
+        <span><b>Phones up!</b> Every phone turns green (right) or red (wrong). <b>Found</b> if there is at most one red phone. The owner of the word stays silent: it is never for the one who lost it.</span>
+        <span><b>One of you is the daemon.</b> It wants words to stay lost. It is mortal: it has 4 lives, and every lost word burns one. When the candle is gone, it dies. <b>More found than lost: we win.</b> More lost: the daemon wins.</span>
+      </div>
+      <button id="reset">New game (new words)</button>
+    </div>
+  </section>
+
+  <!-- play -->
+  <section id="play" class="grid" hidden>
+    <div style="display:grid;gap:18px;min-width:0">
+      <div class="card">
+        <span class="label">step 1 on your phone: type the number of players</span>
+        <div class="big" style="font-size:56px"><span id="pn">0</span> <span class="dim" style="font-size:22px">players</span></div>
+      </div>
+      <div class="card">
+        <span class="label">the lost words</span>
+        <div class="words" id="words"></div>
+      </div>
+      <div class="card" id="turnbox">
+        <div class="turn" id="turn"></div>
+        <div id="botbox" hidden style="display:grid;gap:10px">
+          <span class="label" id="botlabel">simulated players</span>
+          <div class="bots" id="bots"></div>
+          <div class="row"><button id="botup">Phones up! Show the simulated phones too</button></div>
+        </div>
+        <div class="row" id="judge">
+          <button class="gold" id="found">Found: 0 or 1 red phone (count all)</button>
+          <button class="ember" id="lost">Lost: 2 or more red phones</button>
+        </div>
+        <div id="accuse" hidden style="display:grid;gap:10px">
+          <span class="label">the word is lost. who is the daemon? point together, then pick the number most people chose</span>
+          <div class="numbers" id="nums"></div>
+          <button id="skip">No accusation</button>
+        </div>
+        <div id="reveal" class="turn" hidden></div>
+        <div class="row"><button id="cont" hidden class="gold">Next turn</button></div>
+      </div>
+    </div>
+    <div style="display:grid;gap:18px;align-content:start;min-width:0">
+      <div class="card">
+        <span class="label">the daemon's candle</span>
+        <div class="candlewrap">
+          <div class="candle" id="candle"><div class="wax" id="wax"></div><div class="flame" id="flame"></div></div>
+          <div style="display:grid;gap:4px">
+            <div class="big" style="font-size:52px"><span id="lives"></span></div>
+            <span class="dim" id="lifetext"></span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <span class="label">found · lost</span>
+        <div class="big" style="font-size:52px"><span id="sf" style="color:var(--gold)">0</span> <span class="dim">·</span> <span id="sl" style="color:var(--ember)">0</span></div>
+        <span class="dim">The daemon wins if more words end up lost than found.</span>
+      </div>
+      <div class="card"><span class="label">what happened</span><div class="log" id="log"></div></div>
+      <div class="row"><button id="sound">Sound: off</button><button id="back">Back to joining</button></div>
+    </div>
+  </section>
+
+  <section id="over" class="card" hidden>
+    <h2 id="otitle"></h2>
+    <p id="otext" style="margin:0"></p>
+    <div class="words" id="owords"></div>
+    <div class="row"><button class="gold" id="again">New game</button></div>
+  </section>
+  <div class="flash" id="endflash" hidden>
+    <div class="verdict" id="endv"></div>
+    <div class="sub" id="ends" style="font-size:22px;max-width:60ch"></div>
+    <button id="endclose" type="button">Show details</button>
+  </div>
+</div>
+
+<!-- ============ PHONE ============ -->
+<div class="phone" id="phone" hidden>
+  <span class="label">the room of lost words</span>
+  <div class="num">Player <span id="me"></span></div>
+  <div id="ask" class="card">
+    <span>How many players are there? It is on the big screen.</span>
+    <form class="row" id="nform"><input id="nin" type="number" inputmode="numeric" min="3" max="32" aria-label="Number of players"><button class="gold" type="submit">Show my cards</button></form>
+    <span class="dim" id="nerr"></span>
+  </div>
+  <div id="cards" hidden style="display:grid;gap:16px">
+    <button id="peek" class="cover" type="button">Tap to show your cards. Hide them from your neighbours.</button>
+    <div class="secret card" id="secret" hidden>
+      <div class="role" id="role"></div>
+      <div><span class="label">your lost word (yours, never say it)</span><div class="word" id="own"></div><span class="dim" id="ownnote"></span></div>
+      <div><span class="label">the riddle you read aloud, when it is your turn</span><div class="riddle" id="riddle"></div><span class="dim">(It describes someone else's word.)</span></div>
+      <button id="hide" type="button">Hide</button>
+    </div>
+    <div class="card" id="answer">
+      <div class="tnav"><button id="tprev" type="button" aria-label="Previous turn">‹</button><span class="t">Turn <span id="tn">1</span></span><button id="tnext" type="button" aria-label="Next turn">›</button></div>
+      <span class="dim" id="twho"></span>
+      <div id="pickwrap" style="display:grid;gap:10px">
+        <span class="label">which word does the riddle describe? tap it, then lock</span>
+        <div class="pick" id="pick"></div>
+        <button class="gold" id="lock" type="button" disabled>Lock my answer</button>
+      </div>
+      <div id="locked" hidden style="display:grid;gap:10px">
+        <span>Locked: <b id="lockedw"></b>. Wait until everyone has locked.</span>
+        <button class="gold" id="up" type="button">Phones up! Show my colour</button>
+      </div>
+      <div id="silent" hidden class="role">This is your own lost word. Stay silent and don't answer. Keep your phone down.</div>
+    </div>
+    <div class="card">
+      <span class="label">your points (one for every right answer)</span>
+      <div class="score"><span class="n" id="pts">0</span></div>
+    </div>
+  </div>
+  <div class="flash" id="flash" hidden>
+    <div class="verdict" id="verdict"></div>
+    <div class="sub" id="fsub"></div>
+    <button id="fclose" type="button">Next turn</button>
+  </div>
+</div>
+
+<script>
+(()=>{
+/* The artifact's own link. Phones open it with a player code after the #. */
+const BASE=location.origin+location.pathname;
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* 32 words, each with a riddle that is a little vague and leans toward its neighbours */
+const BANK=[
+ ["rain","Water falls from the sky and you open an umbrella."],
+ ["classroom","A room with a teacher, desks and a board."],
+ ["car","It has four wheels and you drive it on the road."],
+ ["skeleton","All the bones inside your body."],
+ ["key","A small metal thing that opens a lock."],
+ ["umbrella","You open it over your head when it rains."],
+ ["letter","You write it on paper and send it in an envelope."],
+ ["clock","It hangs on the wall and tells you the time."],
+ ["bridge","You walk over it to cross a river."],
+ ["shadow","The dark shape that follows you in the sun."],
+ ["mirror","You look into it and see your own face."],
+ ["candle","It burns, gives a little light, and gets shorter."],
+ ["map","A picture of a city that helps you find the way."],
+ ["coat","You wear it over your clothes when it is cold."],
+ ["ghost","A dead person who still walks in an old house."],
+ ["train","It runs on rails and stops at stations."],
+ ["river","Water that flows through the city to the sea."],
+ ["library","A quiet building full of books you can borrow."],
+ ["snow","White and cold, it falls from the sky in winter."],
+ ["chair","You sit on it at a table."],
+ ["stairs","Steps you climb to go up to the next floor."],
+ ["glove","You wear it on your hand in winter."],
+ ["radio","A box that plays music and news through the air."],
+ ["window","Glass in the wall that you look through."],
+ ["ring","A small circle of gold you wear on your finger."],
+ ["bell","It rings: ding, dong."],
+ ["photograph","A picture you take with a camera."],
+ ["salt","White and small, it makes food taste better. The sea is full of it."],
+ ["moon","It shines in the night sky and changes its shape."],
+ ["door","You open it to go into a room."],
+ ["bread","You buy it at the bakery and make sandwiches with it."],
+ ["tree","It is tall, green, and has leaves and branches."]
+];
+/* deterministic from a seed, so the projector and every phone agree without talking to each other */
+function rng(seed){let s=seed>>>0||1;const r=()=>{s^=s<<13;s>>>=0;s^=s>>17;s^=s<<5;s>>>=0;return s/4294967296};for(let i=0;i<8;i++)r();return r}
+function deal(seed,n){
+  const r=rng(seed*7919+13),idx=BANK.map((_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}
+  const words=idx.slice(0,n).map(i=>BANK[i]);           // player k (1..n) owns words[k-1]
+  const daemon=1+Math.floor(rng(seed*31+n)()*n);        // depends on the final count, chosen after everyone joins
+  const lives=4;
+  return{words,daemon,lives,
+    owner:k=>words[k-1][0],
+    readsFor:k=>k%n+1,                                   // player k reads the riddle of player k+1's word: never their own
+    riddle:k=>words[(k%n)][1]};
+}
+
+const m=/^#g(\d{3,7})p(\d{1,2})$/.exec(location.hash||"");
+if(m)phone(+m[1],+m[2]);else host();
+
+/* ================= phone ================= */
+function phone(seed,k){
+  $("#host").hidden=true;$("#phone").hidden=false;$("#me").textContent=k;
+  const key=`rlwp-${seed}-${k}`;let st=store.get(key,{n:0,turn:1,ans:{},shown:{}});let sel=null;
+  function show(){
+    if(!st.n){$("#ask").hidden=false;$("#cards").hidden=true;return}
+    $("#ask").hidden=true;$("#cards").hidden=false;
+    const g=deal(seed,st.n),isD=k===g.daemon,reader=(k+st.n-2)%st.n+1;
+    $("#role").className="role"+(isD?" daemon":"");
+    $("#role").textContent=isD
+      ?`You are the daemon. Make words stay lost: answer wrong on purpose (your phone shows you the true word). Your phone turns red like anyone's, so don't be red too often. One wrong guess is forgiven, so a word is only lost if someone else is wrong too. You are mortal: every lost word costs you one of your ${g.lives} lives. Don't let them see who you are.`
+      :"You are one of the seekers. Find as many words as you can. One of you is the daemon and answers wrong on purpose.";
+    $("#own").textContent=g.owner(k);
+    $("#ownnote").textContent=`Player ${reader} will read the riddle for your word (turn ${reader}). On that turn, stay silent: it is never for the one who lost it.`;
+    $("#riddle").textContent=`“${g.riddle(k)}”`;
+    turn();
+  }
+  // one turn on the phone: pick a word, lock it, then show the colour when the room says "phones up"
+  function turn(){
+    const n=st.n,g=deal(seed,n),t=st.turn,list=g.words.map(w=>w[0]).sort(),right=g.owner(g.readsFor(t)),mine=g.readsFor(t)===k,isD=k===g.daemon;
+    $("#tn").textContent=`${t} / ${n}`;$("#tprev").disabled=t<=1;$("#tnext").disabled=t>=n;
+    $("#twho").textContent=t===k?"You read your riddle aloud this turn. Then pick too.":`Player ${t} reads a riddle aloud.`+(isD&&!mine?` (Daemon: the true word is “${right}”.)`:"");
+    const a=st.ans[t];
+    $("#silent").hidden=!mine;$("#pickwrap").hidden=mine||!!a;$("#locked").hidden=mine||!a;
+    if(a)$("#lockedw").textContent=a;
+    $("#pick").innerHTML="";list.forEach((w,i)=>{const b=document.createElement("button");b.type="button";b.innerHTML=`<span class="i">${i+1}</span>`+w;if(w===sel)b.classList.add("sel");b.onclick=()=>{sel=w;turn()};$("#pick").appendChild(b)});
+    $("#lock").disabled=!sel;
+    $("#pts").textContent=Object.keys(st.ans).filter(x=>st.ans[x]===g.owner(g.readsFor(+x))).length;
+  }
+  function flash(){
+    const g=deal(seed,st.n),t=st.turn,ok=st.ans[t]===g.owner(g.readsFor(t));
+    $("#flash").className="flash "+(ok?"ok":"no");$("#verdict").textContent=ok?"RIGHT":"WRONG";
+    $("#fsub").textContent=`Turn ${t}. Hold your phone up high.`;$("#fclose").textContent=t>=st.n?"Close":"Next turn";$("#flash").hidden=false;
+  }
+  $("#lock").onclick=()=>{if(!sel)return;st.ans[st.turn]=sel;sel=null;store.set(key,st);turn()};
+  $("#up").onclick=flash;
+  $("#fclose").onclick=()=>{$("#flash").hidden=true;if(st.turn<st.n)st.turn++;sel=null;store.set(key,st);turn()};
+  $("#tprev").onclick=()=>{st.turn=Math.max(1,st.turn-1);sel=null;store.set(key,st);turn()};
+  $("#tnext").onclick=()=>{st.turn=Math.min(st.n,st.turn+1);sel=null;store.set(key,st);turn()};
+  $("#nform").addEventListener("submit",e=>{e.preventDefault();const n=parseInt($("#nin").value,10);
+    if(!(n>=3&&n<=32)){$("#nerr").textContent="Type the number shown on the big screen.";return}
+    if(n<k){$("#nerr").textContent=`That's fewer than your player number (${k}). Check the big screen.`;return}
+    st.n=n;store.set(key,st);show()});
+  $("#peek").onclick=()=>{$("#secret").hidden=false;$("#peek").hidden=true};
+  $("#hide").onclick=()=>{$("#secret").hidden=true;$("#peek").hidden=false};
+  show();
+}
+
+/* ================= projector ================= */
+function host(){
+  let S=store.get("rlwp-host",null);
+  const tot=()=>S.total||S.joined, isBot=k=>k>S.joined;
+  if(!S||!S.seed)S=fresh();
+  function fresh(){return{seed:10000+Math.floor(Math.random()*89999),joined:0,phase:"join",turn:1,results:{},lives:0,dead:false,caught:0,log:[]}}
+  function save(){store.set("rlwp-host",S)}
+  let qr=null;
+
+  function link(k){return`${BASE}#g${S.seed}p${k}`}
+  function drawJoin(){
+    $("#join").hidden=S.phase!=="join";$("#play").hidden=S.phase!=="play";$("#over").hidden=S.phase!=="over";
+    if(S.phase!=="join")return;
+    const k=S.joined+1;$("#jn").textContent=k;$("#jcount").textContent=S.joined;$("#jurl").textContent=link(k);
+    const fill=Math.max(0,3-S.joined);$("#begin").disabled=S.joined<1;$("#begin").textContent=S.joined<1?"Scan a code to join first":fill?`Start with ${S.joined} + ${fill} simulated`:`Everyone is in. Start with ${S.joined}`;$("#undo").disabled=S.joined<1;
+    try{if(window.QRCode){if(!qr)qr=new QRCode($("#qr"),{text:link(k),width:280,height:280,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});else{qr.clear();qr.makeCode(link(k))}}else $("#qr").textContent="QR could not load. Use the link below."}catch(e){$("#qr").textContent="QR could not load. Use the link below."}
+  }
+  $("#next").onclick=()=>{if(S.joined>=32)return;S.joined++;save();drawJoin()};
+  $("#undo").onclick=()=>{S.joined=Math.max(0,S.joined-1);save();drawJoin()};
+  $("#reset").onclick=()=>{S=fresh();save();drawJoin()};
+  $("#begin").onclick=()=>{S.total=Math.max(3,S.joined);const g=deal(S.seed,S.total);S.phase="play";S.turn=1;S.results={};S.bot={};S.dlog=[];S.lives=g.lives;S.dead=false;S.caught=0;S.log=[`${S.joined} ${S.joined===1?"person":"people"} sat down`+(S.total>S.joined?`, with ${S.total-S.joined} simulated player${S.total-S.joined>1?"s":""} (${botNames()})`:"")+`. One of them is the daemon. It has ${g.lives} lives.`];save();snd("bell");drawPlay()};
+  $("#back").onclick=()=>{S.phase="join";S.total=0;save();drawJoin()};
+  $("#again").onclick=()=>{S=fresh();save();drawJoin()};
+  $("#endclose").onclick=()=>{$("#endflash").hidden=true};
+
+  function drawPlay(){
+    $("#join").hidden=S.phase!=="join";$("#play").hidden=S.phase!=="play";$("#over").hidden=S.phase!=="over";
+    if(S.phase==="over")return drawOver();
+    if(S.phase!=="play")return;
+    const n=tot(),g=deal(S.seed,n);
+    $("#pn").textContent=n;
+    // shared list, alphabetical so its order gives nothing away
+    const list=g.words.map(w=>w[0]).sort();const res={};for(const t in S.results)res[g.owner(g.readsFor(+t))]=S.results[t];
+    $("#words").innerHTML="";list.forEach((w,i)=>{const s=document.createElement("span");s.className="w"+(res[w]?" "+res[w]:"");s.innerHTML=`<span class="dim" style="font-family:var(--mono);font-size:12px;margin-right:6px">${i+1}</span>`;s.append(w);$("#words").appendChild(s)})
+    // the candle: its remaining life, visible to everyone
+    const wh=S.dead?6:10+120*S.lives/g.lives;$("#wax").style.height=wh+"px";$("#flame").style.bottom=(wh+1)+"px";$("#candle").classList.toggle("dead",S.dead);
+    $("#lives").textContent=S.dead?"✕":S.lives;
+    $("#lifetext").textContent=S.dead?(S.caught?"caught. the daemon is dead.":"burnt out. the daemon is dead."):S.lives===1?"one more lost word and it dies":`${S.lives} lost words until it dies`;
+    const f=Object.values(S.results).filter(v=>v==="found").length,l=Object.values(S.results).filter(v=>v==="lost").length;$("#sf").textContent=f;$("#sl").textContent=l;
+    $("#log").innerHTML="";for(const t of S.log.slice().reverse()){const p=document.createElement("div");p.textContent=t;$("#log").appendChild(p)}
+    // the turn
+    const owner=g.readsFor(S.turn),done=S.results[S.turn];
+    $("#turn").innerHTML=(isBot(S.turn)?`Player <b>${S.turn}</b> (simulated) reads its riddle:<br><i>“${g.riddle(S.turn)}”</i>`:`Player <b>${S.turn}</b> reads a riddle aloud.`)+`<br><span class="dim" style="font-size:.6em">Player ${owner}${isBot(owner)?" (simulated)":""} stays silent. Everyone else: pick on your phone and lock. Then: phones up!</span>`;
+    $("#judge").hidden=!!done||S.pendingAccuse;$("#accuse").hidden=!S.pendingAccuse;$("#cont").hidden=!done||S.pendingAccuse;
+    $("#reveal").hidden=!S.reveal;$("#reveal").innerHTML=S.reveal||"";
+    $("#nums").innerHTML="";for(let i=1;i<=n;i++){const b=document.createElement("button");b.textContent=i;b.onclick=()=>accuse(i);$("#nums").appendChild(b)}
+    $("#cont").textContent=S.turn>=n?"See the end":"Next turn";
+    drawBots(g);
+  }
+  function botNames(){const a=[];for(let k=S.joined+1;k<=S.total;k++)a.push("player "+k);return a.join(", ")}
+  /* simulated players: honest ones are right about 85% of the time; a simulated daemon decides for itself */
+  function botAnswers(g){
+    const t=S.turn,right=g.owner(g.readsFor(t)),list=g.words.map(w=>w[0]),out={},n=tot();
+    for(let k=S.joined+1;k<=n;k++){
+      if(k===g.readsFor(t))continue;
+      if(k===g.daemon&&!S.dead){
+        const f=Object.values(S.results).filter(v=>v==="found").length,l=Object.values(S.results).filter(v=>v==="lost").length,R=n-t+1,need=f-l+1;
+        let allRight=1;for(let j=1;j<=n;j++){if(j===k||j===g.readsFor(t))continue;allRight*=.85}
+        const pLost=1-allRight,age=1-S.lives/g.lives,hopeless=need>R,last=S.lives===1;
+        const U={lie:1.4*pLost*(1+Math.max(0,need-R/2)*.6)-(last?.35:0)-(hopeless?.6:0),truth:.35+(hopeless?.5:0)+(last?.25:0),chance:.05+.7*age+(hopeless?.3:0)};
+        const ks=Object.keys(U),ex=ks.map(x=>Math.exp(U[x]/.32)),sm=ex.reduce((a,b)=>a+b,0);let r=Math.random(),pick=ks[2];
+        for(let i=0;i<3;i++){if((r-=ex[i]/sm)<0){pick=ks[i];break}}
+        out[k]=pick==="lie"?list.filter(w=>w!==right)[Math.floor(Math.random()*(list.length-1))]:pick==="truth"?right:list[Math.floor(Math.random()*list.length)];
+        S.dlog.push(`Turn ${t}: it chose to ${{lie:"lie",truth:"answer right to look innocent",chance:"let chance answer"}[pick]} (${ks.map((x,i)=>x+" "+Math.round(ex[i]/sm*100)+"%").join(", ")}).`);
+      }else out[k]=Math.random()<.85?right:list.filter(w=>w!==right)[Math.floor(Math.random()*(list.length-1))];
+    }
+    return out;
+  }
+  function drawBots(g){
+    const has=tot()>S.joined;$("#botbox").hidden=!has;if(!has)return;
+    const t=S.turn,right=g.owner(g.readsFor(t)),a=S.bot[t];
+    $("#bots").innerHTML="";
+    for(let k=S.joined+1;k<=tot();k++){const d=document.createElement("div");const silent=k===g.readsFor(t);
+      d.className="bot"+(a&&!silent?(a[k]===right?" ok":" no"):"");
+      d.innerHTML=`<span class="n">Player ${k}</span><span class="a">${silent?"stays silent":a?(a[k]===right?"RIGHT":"WRONG"):"has locked"}</span>`;$("#bots").appendChild(d)}
+    $("#botup").hidden=!!a;$("#botlabel").textContent=a?`simulated phones: ${Object.keys(a).filter(k=>a[k]!==right).length} red. Count them with your own red phones.`:"simulated players (they lock at once)";
+    $("#judge").hidden=$("#judge").hidden||!a;
+  }
+  $("#botup").onclick=()=>{const g=deal(S.seed,tot());S.bot[S.turn]=botAnswers(g);save();drawPlay()};
+  function word(){const g=deal(S.seed,tot());return g.owner(g.readsFor(S.turn))}
+  $("#found").onclick=()=>{S.results[S.turn]="found";S.reveal=`The word was <b style="color:var(--gold)">${word()}</b>. Found.`;S.log.push(`Turn ${S.turn}: “${word()}” was found.`);snd("bell");save();drawPlay()};
+  $("#lost").onclick=()=>{
+    S.results[S.turn]="lost";S.log.push(`Turn ${S.turn}: “${word()}” went to the room of lost words.`);
+    if(!S.dead){S.lives--;snd("crunch");if(S.lives<=0){S.dead=true;const d=deal(S.seed,tot()).daemon;S.reveal=`The word was <b style="color:var(--ember)">${word()}</b>. It is lost.<br>The candle is out. <b style="color:var(--ember)">Player ${d}</b> was the daemon, and has died of age.`;S.log.push(`The daemon's candle burnt out. It was player ${d}.`);snd("death");save();return drawPlay()}}
+    S.reveal=`The word was <b style="color:var(--ember)">${word()}</b>. It is lost.`;
+    S.pendingAccuse=false;save();drawPlay()};
+  function accuse(i){
+    const d=deal(S.seed,tot()).daemon;S.pendingAccuse=false;
+    if(i===d){S.dead=true;S.caught=i;S.reveal+=`<br>You accused player ${i}. <b style="color:var(--gold)">Caught.</b> The daemon is dead.`;S.log.push(`Player ${i} was accused, and was the daemon.`);snd("death")}
+    else{S.reveal+=`<br>You accused player ${i}. Wrong: player ${i} is innocent. The daemon is still among you.`;S.log.push(`Player ${i} was accused, and was innocent.`);snd("thud")}
+    save();drawPlay()}
+  $("#skip").onclick=()=>{S.pendingAccuse=false;S.log.push("Nobody was accused.");save();drawPlay()};
+  $("#cont").onclick=()=>{S.reveal="";if(S.turn>=tot()){S.phase="over"}else S.turn++;save();drawPlay()};
+
+  function drawOver(){
+    const g=deal(S.seed,tot()),f=Object.values(S.results).filter(v=>v==="found").length,l=Object.values(S.results).filter(v=>v==="lost").length;
+    const dWins=l>f;
+    $("#otitle").textContent=dWins?"The daemon wins. The room keeps its words.":"The seekers win.";
+    $("#otext").textContent=`${f} words found, ${l} lost. The daemon was player ${g.daemon}${isBot(g.daemon)?" (simulated)":""}${S.dead?", and its candle burnt out":""}. Now everyone reads their points from their phone.`+(isBot(g.daemon)&&S.dlog&&S.dlog.length?" What the simulated daemon decided: "+S.dlog.join(" "):"");
+    $("#endflash").className="flash "+(dWins?"no":"ok");$("#endv").textContent=dWins?"THE DAEMON WINS":"WE WIN";
+    $("#ends").textContent=`${f} found · ${l} lost · the daemon was player ${g.daemon}`;$("#endflash").hidden=false;
+    $("#owords").innerHTML="";for(let t=1;t<=tot();t++){const w=g.owner(g.readsFor(t)),s=document.createElement("span");s.className="w "+(S.results[t]||"");s.textContent=w;$("#owords").appendChild(s)}
+    snd(dWins?"death":"bell");
+  }
+
+  /* sound: a low drone that gets uneasier as the daemon's candle burns down */
+  let AC=null,on=false,dr=null;
+  $("#sound").onclick=()=>{on=!on;$("#sound").textContent="Sound: "+(on?"on":"off");try{if(on&&!AC){AC=new (window.AudioContext||window.webkitAudioContext)();const f=AC.createBiquadFilter();f.type="lowpass";f.frequency.value=200;const g=AC.createGain();g.gain.value=.08;f.connect(g);g.connect(AC.destination);const a=AC.createOscillator(),b=AC.createOscillator();a.type=b.type="sawtooth";a.frequency.value=55;b.frequency.value=55.4;a.connect(f);b.connect(f);a.start();b.start();dr={f,g,b}}if(AC){AC.resume();dr.g.gain.setTargetAtTime(on?.08:0,AC.currentTime,.3);tune()}}catch(e){}};
+  function tune(){if(!AC||!dr||S.phase!=="play")return;const g=deal(S.seed,tot()),s=S.dead?0:1-S.lives/g.lives;dr.f.frequency.setTargetAtTime(200+s*900,AC.currentTime,.8);dr.b.frequency.setTargetAtTime(55.4+s*3,AC.currentTime,.8)}
+  function env(type,f0,dur,vol,f1){if(!AC||!on)return;const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);if(f1)o.frequency.exponentialRampToValueAtTime(f1,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.05)}
+  function snd(k){if(k==="bell"){env("sine",660,1.6,.2);env("sine",990,1.2,.08)}else if(k==="crunch")env("sawtooth",160,.5,.2,50);else if(k==="thud")env("sine",90,.4,.3,45);else if(k==="death"){env("sawtooth",220,2.2,.18,40);env("sine",110,2.5,.2,30)}tune()}
+
+  if(S.phase==="join")drawJoin();else drawPlay();
+}
+})();
+</script>
+</body>
+</html>
